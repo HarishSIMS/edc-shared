@@ -1,287 +1,367 @@
 # =============================================================================
+
 # EDC Ingestion Platform — GitHub Actions CI
-# =============================================================================
-# Mirrors the former GitLab pipeline: lint → test → security → docker + trivy,
-# Terraform fmt/validate, IaC scans. Production terraform apply / migrate / ECS
-# deploy remain manual (Makefile, AWS CLI, or add workflow_dispatch workflows).
+# Mirrors the former GitLab pipeline: lint → test → security → docker + trivy, 
+# Terraform fmt/validate, IaC scans. Production terraform apply / migrate / ECS 
+# deploy remain manual (Makefile, AWS CLI, or add workflow_dispatch workflows)
+# fixed order of poetry installation and caching
 # =============================================================================
 
 name: CI
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+push:
+branches: [main, develop]
+pull_request:
+branches: [main, develop]
 
 permissions:
-  contents: read
-  packages: write
-  security-events: write
+contents: read
+packages: write
+security-events: write
 
 env:
-  PYTHON_VERSION: "3.13"
-  POETRY_VERSION: "2.3.2"
-  TF_ROOT: terraform
-  MODIN_CPUS: "1"
+PYTHON_VERSION: "3.13"
+POETRY_VERSION: "2.3.2"
+TF_ROOT: terraform
+MODIN_CPUS: "1"
 
 jobs:
-  lint:
-    name: Lint (ruff + mypy)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: poetry
+# =============================================================================
 
-      - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+# LINT
 
-      - name: Install dependencies
-        run: poetry install --no-interaction
+# =============================================================================
 
-      - name: Ruff check
-        run: poetry run ruff check src/ --output-format=github
+lint:
+name: Lint (ruff + mypy)
+runs-on: ubuntu-latest
 
-      - name: Ruff format
-        run: poetry run ruff format --check src/
 
-      - name: Mypy
-        run: poetry run mypy src/
+steps:
+  - uses: actions/checkout@v4
 
-  test:
-    name: Test (pytest + Postgres)
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:18-alpine
-        env:
-          POSTGRES_USER: edc_user
-          POSTGRES_PASSWORD: edc_pass
-          POSTGRES_DB: edc_platform_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U edc_user -d edc_platform_test"
-          --health-interval 3s
-          --health-timeout 5s
-          --health-retries 15
+  - name: Install Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: ${{ env.PYTHON_VERSION }}
 
+  - name: Install Poetry
+    run: pip install "poetry==${{ env.POETRY_VERSION }}"
+
+  - name: Cache Poetry dependencies
+    uses: actions/cache@v4
+    with:
+      path: ~/.cache/pypoetry
+      key: poetry-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+
+  - name: Install dependencies
+    run: poetry install --no-interaction
+
+  - name: Ruff check
+    run: poetry run ruff check src/ --output-format=github
+
+  - name: Ruff format
+    run: poetry run ruff format --check src/
+
+  - name: Mypy
+    run: poetry run mypy src/
+
+
+# =============================================================================
+
+# TEST
+
+# =============================================================================
+
+test:
+name: Test (pytest + Postgres)
+runs-on: ubuntu-latest
+
+
+services:
+  postgres:
+    image: postgres:18-alpine
     env:
-      DATABASE_URL: postgresql://edc_user:edc_pass@localhost:5432/edc_platform_test
+      POSTGRES_USER: edc_user
+      POSTGRES_PASSWORD: edc_pass
+      POSTGRES_DB: edc_platform_test
+    ports:
+      - 5432:5432
+    options: >-
+      --health-cmd "pg_isready -U edc_user -d edc_platform_test"
+      --health-interval 3s
+      --health-timeout 5s
+      --health-retries 15
 
-    steps:
-      - uses: actions/checkout@v4
+env:
+  DATABASE_URL: postgresql://edc_user:edc_pass@localhost:5432/edc_platform_test
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: poetry
+steps:
+  - uses: actions/checkout@v4
 
-      - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+  - name: Install Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install dependencies
-        run: poetry install --no-interaction
+  - name: Install Poetry
+    run: pip install "poetry==${{ env.POETRY_VERSION }}"
 
-      - name: Pytest with coverage
-        run: >
-          poetry run pytest
-          --cov=src/edc_ingestion
-          --cov-report=xml:coverage.xml
-          --cov-report=term
-          --junitxml=junit.xml
+  - name: Cache Poetry dependencies
+    uses: actions/cache@v4
+    with:
+      path: ~/.cache/pypoetry
+      key: poetry-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
 
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-xml
-          path: coverage.xml
+  - name: Install dependencies
+    run: poetry install --no-interaction
 
-      - name: Upload junit
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: junit
-          path: junit.xml
+  - name: Pytest with coverage
+    run: >
+      poetry run pytest
+      --cov=src/edc_ingestion
+      --cov-report=xml:coverage.xml
+      --cov-report=term
+      --junitxml=junit.xml
 
-  gitleaks:
-    name: Gitleaks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  - name: Upload coverage
+    uses: actions/upload-artifact@v4
+    if: always()
+    with:
+      name: coverage-xml
+      path: coverage.xml
 
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  - name: Upload junit
+    uses: actions/upload-artifact@v4
+    if: always()
+    with:
+      name: junit
+      path: junit.xml
 
-  bandit:
-    name: Bandit (SAST)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: poetry
+# =============================================================================
 
-      - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+# GITLEAKS
 
-      - name: Install dependencies
-        run: poetry install --no-interaction
+# =============================================================================
 
-      - name: Bandit
-        run: |
-          pip install "bandit[toml]"
-          bandit -r src/ --severity-level medium
+gitleaks:
+name: Gitleaks
+runs-on: ubuntu-latest
 
-  safety:
-    name: Safety (CVE)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: poetry
+steps:
+  - uses: actions/checkout@v4
+    with:
+      fetch-depth: 0
 
-      - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+  - uses: gitleaks/gitleaks-action@v2
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install export plugin + export requirements
-        run: |
-          poetry self add poetry-plugin-export
-          poetry export --format requirements.txt --output requirements-scan.txt --without-hashes
 
-      - name: Safety check
-        run: |
-          pip install safety
-          safety check --file=requirements-scan.txt
+# =============================================================================
 
-  pip-audit:
-    name: pip-audit (OSV)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+# BANDIT
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: poetry
+# =============================================================================
 
-      - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+bandit:
+name: Bandit (SAST)
+runs-on: ubuntu-latest
 
-      - name: Export requirements
-        run: |
-          poetry self add poetry-plugin-export
-          poetry export --format requirements.txt --output requirements-scan.txt --without-hashes
 
-      - name: pip-audit
-        run: |
-          pip install pip-audit
-          pip-audit -r requirements-scan.txt
+steps:
+  - uses: actions/checkout@v4
 
-  checkov:
-    name: Checkov (Terraform)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  - name: Install Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Install Checkov
-        run: pip install checkov
+  - name: Install Poetry
+    run: pip install "poetry==${{ env.POETRY_VERSION }}"
 
-      - name: Scan Terraform
-        run: checkov -d "${{ env.TF_ROOT }}" --framework terraform --soft-fail
+  - name: Cache Poetry dependencies
+    uses: actions/cache@v4
+    with:
+      path: ~/.cache/pypoetry
+      key: poetry-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
 
-  tflint:
-    name: tflint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  - name: Install dependencies
+    run: poetry install --no-interaction
 
-      - uses: terraform-linters/setup-tflint@v4
-        with:
-          tflint_version: v0.51.2
+  - name: Bandit
+    run: |
+      pip install "bandit[toml]"
+      bandit -r src/ --severity-level medium
 
-      - name: tflint
-        working-directory: ${{ env.TF_ROOT }}
-        run: |
-          tflint --init
-          tflint
 
-  terraform-validate:
-    name: Terraform fmt + validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+# =============================================================================
 
-      - uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.9.0"
+# SAFETY
 
-      - name: Terraform fmt + validate
-        working-directory: ${{ env.TF_ROOT }}
-        run: |
-          terraform init -backend=false
-          terraform fmt -check -recursive
-          terraform validate
+# =============================================================================
 
-  docker-and-trivy:
-    name: Docker build + Trivy scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+safety:
+name: Safety (CVE)
+runs-on: ubuntu-latest
+continue-on-error: true
 
-      - name: GHCR image base (lowercase for ghcr.io)
-        id: ghcr
-        run: echo "image_base=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+steps:
+  - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+  - name: Install Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Build image (load into Docker)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          load: true
-          tags: edc-ingestion:ci
-          labels: |
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+  - name: Install Poetry
+    run: pip install "poetry==${{ env.POETRY_VERSION }}"
 
-      - name: Trivy scan (fail on CRITICAL + HIGH)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: edc-ingestion:ci
-          format: table
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: CRITICAL,HIGH
+  - name: Export requirements
+    run: |
+      poetry self add poetry-plugin-export
+      poetry export --format requirements.txt --output requirements-scan.txt --without-hashes
 
-      - name: Log in to GHCR
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  - name: Safety check
+    run: |
+      pip install safety
+      safety check --file=requirements-scan.txt
 
-      - name: Tag and push to GHCR (default branch only)
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        run: |
-          BASE="${{ steps.ghcr.outputs.image_base }}"
-          docker tag edc-ingestion:ci "${BASE}:latest"
-          docker tag edc-ingestion:ci "${BASE}:${GITHUB_SHA}"
-          docker push "${BASE}:latest"
-          docker push "${BASE}:${GITHUB_SHA}"
+# =============================================================================
+
+# PIP-AUDIT
+
+# =============================================================================
+
+pip-audit:
+name: pip-audit (OSV)
+runs-on: ubuntu-latest
+
+steps:
+  - uses: actions/checkout@v4
+
+  - name: Install Python
+    uses: actions/setup-python@v5
+    with:
+      python-version: ${{ env.PYTHON_VERSION }}
+
+  - name: Install Poetry
+    run: pip install "poetry==${{ env.POETRY_VERSION }}"
+
+  - name: Export requirements
+    run: |
+      poetry self add poetry-plugin-export
+      poetry export --format requirements.txt --output requirements-scan.txt --without-hashes
+
+  - name: pip-audit
+    run: |
+      pip install pip-audit
+      pip-audit -r requirements-scan.txt
+
+# =============================================================================
+
+# CHECKOV
+
+# =============================================================================
+
+checkov:
+name: Checkov (Terraform)
+runs-on: ubuntu-latest
+
+steps:
+  - uses: actions/checkout@v4
+
+  - name: Install Checkov
+    run: pip install checkov
+
+  - name: Scan Terraform
+    run: checkov -d "${{ env.TF_ROOT }}" --framework terraform --soft-fail
+
+# =============================================================================
+
+# TFLINT
+
+# =============================================================================
+
+tflint:
+name: tflint
+runs-on: ubuntu-latest
+
+steps:
+  - uses: actions/checkout@v4
+
+  - uses: terraform-linters/setup-tflint@v4
+    with:
+      tflint_version: v0.51.2
+
+  - name: tflint
+    working-directory: ${{ env.TF_ROOT }}
+    run: |
+      tflint --init
+      tflint
+
+# =============================================================================
+
+# TERRAFORM VALIDATE
+
+# =============================================================================
+
+terraform-validate:
+name: Terraform fmt + validate
+runs-on: ubuntu-latest
+
+steps:
+  - uses: actions/checkout@v4
+
+  - uses: hashicorp/setup-terraform@v3
+    with:
+      terraform_version: "1.9.0"
+
+  - name: Terraform fmt + validate
+    working-directory: ${{ env.TF_ROOT }}
+    run: |
+      terraform init -backend=false
+      terraform fmt -check -recursive
+      terraform validate
+
+# =============================================================================
+
+# DOCKER + TRIVY
+
+# =============================================================================
+
+docker-and-trivy:
+name: Docker build + Trivy scan
+runs-on: ubuntu-latest
+
+steps:
+  - uses: actions/checkout@v4
+
+  - name: GHCR image base
+    id: ghcr
+    run: echo "image_base=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+  - name: Set up Docker Buildx
+    uses: docker/setup-buildx-action@v3
+
+  - name: Build image
+    uses: docker/build-push-action@v6
+    with:
+      context: .
+      load: true
+      tags: edc-ingestion:ci
+
+  - name: Trivy scan
+    uses: aquasecurity/trivy-action@0.28.0
+    with:
+      image-ref: edc-ingestion:ci
+      format: table
+      exit-code: "1"
+      ignore-unfixed: true
+      severity: CRITICAL,HIGH
+
+
