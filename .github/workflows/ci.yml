@@ -13,6 +13,7 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.13"
+  PYTHONNOUSERSITE: "1"
   POETRY_VERSION: "2.3.2"
   POETRY_VIRTUALENVS_CREATE: "true"
   POETRY_VIRTUALENVS_IN_PROJECT: "true"
@@ -34,6 +35,9 @@ jobs:
 
       - name: Install Poetry
         run: pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Configure Poetry environment
+        run: poetry config virtualenvs.in-project true
 
       - name: Cache Poetry dependencies
         uses: actions/cache@v4
@@ -85,6 +89,9 @@ jobs:
 
       - name: Install Poetry
         run: pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Configure Poetry environment
+        run: poetry config virtualenvs.in-project true
 
       - name: Cache Poetry dependencies
         uses: actions/cache@v4
@@ -145,6 +152,9 @@ jobs:
       - name: Install Poetry
         run: pip install "poetry==${{ env.POETRY_VERSION }}"
 
+      - name: Configure Poetry environment
+        run: poetry config virtualenvs.in-project true
+
       - name: Cache Poetry dependencies
         uses: actions/cache@v4
         with:
@@ -175,6 +185,9 @@ jobs:
       - name: Install Poetry
         run: pip install "poetry==${{ env.POETRY_VERSION }}"
 
+      - name: Configure Poetry environment
+        run: poetry config virtualenvs.in-project true
+
       - name: Install deps (clean env)
         run: poetry install --no-interaction --no-ansi
 
@@ -198,6 +211,9 @@ jobs:
 
       - name: Install Poetry
         run: pip install "poetry==${{ env.POETRY_VERSION }}"
+
+      - name: Configure Poetry environment
+        run: poetry config virtualenvs.in-project true
 
       - name: Install deps (clean env)
         run: poetry install --no-interaction --no-ansi
