@@ -261,7 +261,7 @@ jobs:
 
       - name: pip-audit
         run: |
-          pip install pip-audit
+          pipx install pip-audit
           pip-audit -r requirements-scan.txt
 
 
@@ -272,7 +272,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Checkov
-        run: pip install checkov
+        run: pipx install checkov
 
       - name: Scan Terraform
         run: checkov -d "${{ env.TF_ROOT }}" --framework terraform --soft-fail
