@@ -33,8 +33,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install pipx
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipx
+          python -m pipx ensurepath
+
       - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+        run: pipx install poetry==${{ env.POETRY_VERSION }}
 
       - name: Add Poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -90,8 +96,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install pipx
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipx
+          python -m pipx ensurepath
+
       - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+        run: pipx install poetry==${{ env.POETRY_VERSION }}
 
       - name: Add Poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -155,8 +167,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install pipx
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipx
+          python -m pipx ensurepath
+
       - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+        run: pipx install poetry==${{ env.POETRY_VERSION }}
 
       - name: Add Poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -191,8 +209,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install pipx
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipx
+          python -m pipx ensurepath
+
       - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+        run: pipx install poetry==${{ env.POETRY_VERSION }}
 
       - name: Add Poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
@@ -221,8 +245,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pipx
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipx
+          python -m pipx ensurepath
+
       - name: Install Poetry
-        run: pip install "poetry==${{ env.POETRY_VERSION }}"
+        run: pipx install poetry==${{ env.POETRY_VERSION }}
 
       - name: Add Poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
