@@ -126,3 +126,4 @@ poetry run python scripts/generate_openapi.py
 ## Licence
 
 Use and modify per your organisation’s policy; template ships without proprietary business logic.
+# trigger pipeline
