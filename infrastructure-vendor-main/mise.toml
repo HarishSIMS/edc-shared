@@ -1,6 +1,0 @@
-[tools]
-python = "3"
-terraform = "1"
-terraform-docs = "latest"
-terraform-validator = "latest"
-tflint = "latest"
