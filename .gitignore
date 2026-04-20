@@ -1,4 +1,4 @@
-# =============================================================================
+i# =============================================================================
 # EDC Ingestion Platform — Git ignore (clone-friendly; no secrets in repo)
 # =============================================================================
 
@@ -88,3 +88,22 @@ Desktop.ini
 *.log
 *.tmp
 .cache/
+# Python
+__pycache__/
+*.pyc
+
+# Env
+.env
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
+# Logs
+*.log
