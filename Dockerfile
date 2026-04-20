@@ -32,7 +32,7 @@ RUN poetry lock 2>/dev/null; \
 # ---------------------------------------------------------------------------
 # Runtime stage — install deps from requirements.txt, copy app
 # ---------------------------------------------------------------------------
-FROM python:3.13.11-slim AS runtime
+FROM python:3.13-slim-bookworm AS runtime
 
 RUN groupadd --gid 1000 appuser && \
     useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser
